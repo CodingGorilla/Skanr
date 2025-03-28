@@ -27,7 +27,7 @@ namespace Skanr
 
             var compilation = context.Compilation;
 
-            var registrations = new List<(INamedTypeSymbol Interface, INamedTypeSymbol Implementation, string Lifetime)>();
+            var registrations = new List<PendingRegistration>();
 
             // Get the InjectableAttribute symbol for inheritance checking
             var injectableAttributeSymbol = compilation.GetTypeByMetadataName("Skanr.Attributes.InjectableAttribute");
@@ -76,34 +76,35 @@ namespace Skanr
 
                             var interfaces = symbol.Interfaces;
 
+                            var groupName = symbol.Name;
                             // Handle registration based on mode
                             switch(mode)
                             {
                                 case "Instance":
-                                    registrations.Add((symbol, symbol, lifetime));
+                                    registrations.Add(new(groupName, symbol, symbol, lifetime));
                                     break;
 
                                 case "AllInterfaces" when interfaces.Length > 0:
                                     foreach(var iface in interfaces)
                                     {
-                                        registrations.Add((iface, symbol, lifetime));
+                                        registrations.Add(new(groupName, iface, symbol, lifetime));
                                     }
 
                                     break;
 
                                 case "FirstInterface" when interfaces.Length > 0:
-                                    registrations.Add((interfaces[0], symbol, lifetime));
+                                    registrations.Add(new(groupName, interfaces[0], symbol, lifetime));
                                     break;
 
                                 case "Auto" when interfaces.Length > 0:
-                                    registrations.Add((interfaces[0], symbol, lifetime));
+                                    registrations.Add(new(groupName, interfaces[0], symbol, lifetime));
                                     break;
 
                                 case "Manual" when specifiedInterfaces.Length > 0:
                                     foreach(var iface in specifiedInterfaces)
                                     {
                                         if(interfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, iface)))
-                                            registrations.Add((iface, symbol, lifetime));
+                                            registrations.Add(new(groupName, iface, symbol, lifetime));
                                     }
 
                                     break;
@@ -111,7 +112,7 @@ namespace Skanr
                                 case "Auto": // If no interfaces are available, fall back to instance
                                 case "Manual": // If no interfaces specified, fall back to instance
                                 default:
-                                    registrations.Add((symbol, symbol, lifetime));
+                                    registrations.Add(new(groupName, symbol, symbol, lifetime));
                                     break;
                             }
                         }
@@ -131,13 +132,30 @@ namespace Skanr
             sb.AppendLine("    public static void RegisterServices(this IServiceCollection services)");
             sb.AppendLine("    {");
 
-            foreach(var (interfaceType, implType, lifetime) in registrations)
+            var skipEndRegion = true;
+            var lastGroupName = string.Empty;
+            foreach(var (groupName, interfaceType, implType, lifetime) in registrations)
             {
+                if(lastGroupName != groupName)
+                {
+                    if(!skipEndRegion)
+                    {
+                        sb.AppendLine("#endregion");
+                        sb.AppendLine();
+                    }
+
+                    skipEndRegion = false;
+                    sb.AppendLine($"#region Class: {groupName}");
+                }
+
+                lastGroupName = groupName;
+
                 var interfaceName = interfaceType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 var implName = implType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 sb.AppendLine($"        services.Add{lifetime}<{interfaceName}, {implName}>();");
             }
 
+            sb.AppendLine("#endregion");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
@@ -341,5 +359,7 @@ namespace Skanr
 
             return false;
         }
+
+        private record struct PendingRegistration(string GroupName, INamedTypeSymbol ServiceType, INamedTypeSymbol ImplementationType, string Lifetime);
     }
 }
