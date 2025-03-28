@@ -21,20 +21,23 @@ jobs:
       with:
         dotnet-version: '9.0.x'
 
-    - name: Restore dependencies
+    - name: Restore all dependencies
       run: dotnet restore
 
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
+    - name: Build Skanr.Attributes
+      run: dotnet build src/Skanr.Attributes/Skanr.Attributes.csproj --no-restore --configuration Release
 
-    - name: Test
+    - name: Build Skanr
+      run: dotnet build src/Skanr/Skanr.csproj --no-restore --configuration Release
+
+    - name: Run Tests
       run: dotnet test --configuration Release --no-build --verbosity normal
-
-    - name: Pack Skanr NuGet package
-      run: dotnet pack src/Skanr/Skanr.csproj --configuration Release --no-build -o ./nupkg
 
     - name: Pack Skanr.Attributes NuGet package
       run: dotnet pack src/Skanr.Attributes/Skanr.Attributes.csproj --configuration Release --no-build -o ./nupkg
+
+    - name: Pack Skanr NuGet package
+      run: dotnet pack src/Skanr/Skanr.csproj --configuration Release --no-build -o ./nupkg
 
     - name: Push NuGet package
       env:
