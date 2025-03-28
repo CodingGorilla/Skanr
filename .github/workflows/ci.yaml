@@ -1,12 +1,12 @@
-name: CI Build
+name: .NET Core CI
 
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   build:
@@ -16,16 +16,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v2
       with:
-        node-version: '14'
+        dotnet-version: '9.0.x'
 
-    - name: Install dependencies
-      run: npm install
+    - name: Restore dependencies
+      run: dotnet restore
 
-    - name: Run build
-      run: npm run build
+    - name: Build
+      run: dotnet build --no-restore
 
-    - name: Run tests
-      run: npm test
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
