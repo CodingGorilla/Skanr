@@ -16,10 +16,10 @@ namespace Skanr
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             var classDeclarations = context.SyntaxProvider
-                .CreateSyntaxProvider(
-                    predicate: static (s, _) => s is ClassDeclarationSyntax,
-                    transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.Node)
-                .Where(static m => m != null);
+                                           .CreateSyntaxProvider(
+                                               predicate:static (s, _) => s is ClassDeclarationSyntax,
+                                               transform:static (ctx, _) => (ClassDeclarationSyntax)ctx.Node)
+                                           .Where(static m => m != null);
 
             var compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect());
 
@@ -38,7 +38,7 @@ namespace Skanr
 
             // Get the InjectableAttribute symbol for inheritance checking
             var injectableAttributeSymbol = compilation.GetTypeByMetadataName("Skanr.Attributes.InjectableAttribute");
-            if (injectableAttributeSymbol == null)
+            if(injectableAttributeSymbol == null)
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     new DiagnosticDescriptor(
@@ -48,10 +48,10 @@ namespace Skanr
                 return; // Exit if base attribute not found
             }
 
-            foreach (var classDecl in classDeclarations)
+            foreach(var classDecl in classDeclarations)
             {
                 var semanticModel = compilation.GetSemanticModel(classDecl.SyntaxTree);
-                if (semanticModel.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol symbol)
+                if(semanticModel.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol symbol)
                     continue;
 
                 // Find any attribute that inherits from InjectableAttribute
@@ -64,9 +64,9 @@ namespace Skanr
                     Location.None));
                 var injectableAttrs = attributes.Where(a => IsSameOrDerivedFrom(a.AttributeClass, injectableAttributeSymbol));
 
-                foreach (var injectableAttr in injectableAttrs)
+                foreach(var injectableAttr in injectableAttrs)
                 {
-                    if (injectableAttr?.AttributeClass != null)
+                    if(injectableAttr?.AttributeClass != null)
                     {
                         context.ReportDiagnostic(Diagnostic.Create(
                             new DiagnosticDescriptor(
@@ -80,14 +80,14 @@ namespace Skanr
 
                         var groupName = symbol.Name;
                         // Handle registration based on mode
-                        switch (mode)
+                        switch(mode)
                         {
                             case "Instance":
                                 registrations.Add(new(groupName, symbol, symbol, lifetime));
                                 break;
 
                             case "AllInterfaces" when interfaces.Length > 0:
-                                foreach (var iface in interfaces)
+                                foreach(var iface in interfaces)
                                 {
                                     registrations.Add(new(groupName, iface, symbol, lifetime));
                                 }
@@ -103,10 +103,9 @@ namespace Skanr
                                 break;
 
                             case "Manual" when specifiedInterfaces.Length > 0:
-                                foreach (var iface in specifiedInterfaces)
+                                foreach(var iface in specifiedInterfaces)
                                 {
-                                    if (interfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, iface)))
-                                        registrations.Add(new(groupName, iface, symbol, lifetime));
+                                    registrations.Add(new(groupName, iface, symbol, lifetime));
                                 }
 
                                 break;
@@ -121,7 +120,7 @@ namespace Skanr
                 }
             }
 
-            if (!registrations.Any())
+            if(!registrations.Any())
             {
                 // Create a diagnostic message if no registrations were found and stop
                 context.ReportDiagnostic(Diagnostic.Create(
@@ -146,11 +145,11 @@ namespace Skanr
 
             var skipEndRegion = true;
             var lastGroupName = string.Empty;
-            foreach (var (groupName, interfaceType, implType, lifetime) in registrations)
+            foreach(var (groupName, interfaceType, implType, lifetime) in registrations)
             {
-                if (lastGroupName != groupName)
+                if(lastGroupName != groupName)
                 {
-                    if (!skipEndRegion)
+                    if(!skipEndRegion)
                     {
                         sb.AppendLine("#endregion");
                         sb.AppendLine();
@@ -183,13 +182,13 @@ namespace Skanr
             var constructorArgs = attributeData.ConstructorArguments;
 
             // Parse meta data based on attribute name
-            if (attributeData.AttributeClass?.Name == nameof(InjectableAttribute))
+            if(attributeData.AttributeClass?.Name == nameof(InjectableAttribute))
                 parseInjectableAttribute();
-            else if (attributeData.AttributeClass?.Name == nameof(TransientServiceAttribute))
+            else if(attributeData.AttributeClass?.Name == nameof(TransientServiceAttribute))
                 parseTransientAttribute();
-            else if (attributeData.AttributeClass?.Name == nameof(ScopedServiceAttribute))
+            else if(attributeData.AttributeClass?.Name == nameof(ScopedServiceAttribute))
                 parseScopedAttribute();
-            else if (attributeData.AttributeClass?.Name == nameof(SingletonServiceAttribute))
+            else if(attributeData.AttributeClass?.Name == nameof(SingletonServiceAttribute))
                 parseSingletonAttribute();
             else
                 throw new Exception($"Invalid attribute: ${attributeData.AttributeClass?.Name ?? "Unknown"}");
@@ -209,7 +208,7 @@ namespace Skanr
                     _ => "Transient"
                 };
 
-                if (constructorArgs.Length > 1)
+                if(constructorArgs.Length > 1)
                 {
                     mode = constructorArgs[1].Value?.ToString() switch
                     {
@@ -221,7 +220,7 @@ namespace Skanr
                     };
                 }
 
-                if (constructorArgs.Length > 2)
+                if(constructorArgs.Length > 2)
                 {
                     interfaces = constructorArgs[2].Values
                                                    .Select(v => v.Value as INamedTypeSymbol)
@@ -237,7 +236,7 @@ namespace Skanr
                 lifetime = "Transient";
 
                 // Check positional arguments
-                if (constructorArgs.Length > 0)
+                if(constructorArgs.Length > 0)
                 {
                     mode = constructorArgs[0].Value?.ToString() switch
                     {
@@ -245,11 +244,12 @@ namespace Skanr
                         "1" => "FirstInterface",
                         "2" => "AllInterfaces",
                         "3" => "Instance",
+                        "4" => "Manual",
                         _ => "Auto"
                     };
                 }
 
-                if (constructorArgs.Length > 1)
+                if(constructorArgs.Length > 1)
                 {
                     interfaces = constructorArgs[1].Values
                                                    .Select(v => v.Value as INamedTypeSymbol)
@@ -265,7 +265,7 @@ namespace Skanr
                 lifetime = "Scoped";
 
                 // Check positional arguments
-                if (constructorArgs.Length > 0)
+                if(constructorArgs.Length > 0)
                 {
                     mode = constructorArgs[0].Value?.ToString() switch
                     {
@@ -277,7 +277,7 @@ namespace Skanr
                     };
                 }
 
-                if (constructorArgs.Length > 1)
+                if(constructorArgs.Length > 1)
                 {
                     interfaces = constructorArgs[1].Values
                                                    .Select(v => v.Value as INamedTypeSymbol)
@@ -293,7 +293,7 @@ namespace Skanr
                 lifetime = "Singleton";
 
                 // Check positional arguments
-                if (constructorArgs.Length > 0)
+                if(constructorArgs.Length > 0)
                 {
                     mode = constructorArgs[0].Value?.ToString() switch
                     {
@@ -305,7 +305,7 @@ namespace Skanr
                     };
                 }
 
-                if (constructorArgs.Length > 1)
+                if(constructorArgs.Length > 1)
                 {
                     interfaces = constructorArgs[1].Values
                                                    .Select(v => v.Value as INamedTypeSymbol)
@@ -319,9 +319,9 @@ namespace Skanr
             void checkNamedArgs()
             {
                 // Look for named arguments
-                foreach (var namedArg in attributeData.NamedArguments)
+                foreach(var namedArg in attributeData.NamedArguments)
                 {
-                    switch (namedArg.Key)
+                    switch(namedArg.Key)
                     {
                         case "lifetime":
                             lifetime = namedArg.Value.Value?.ToString() switch
@@ -339,6 +339,7 @@ namespace Skanr
                                 "1" => "FirstInterface",
                                 "2" => "AllInterfaces",
                                 "3" => "Instance",
+                                "4" => "Manual",
                                 _ => "Auto"
                             };
                             break;
@@ -355,16 +356,16 @@ namespace Skanr
 
         private static bool IsSameOrDerivedFrom(INamedTypeSymbol? symbol, INamedTypeSymbol potentialBase)
         {
-            if (symbol == null)
+            if(symbol == null)
                 return false;
 
-            if (SymbolEqualityComparer.Default.Equals(symbol, potentialBase))
+            if(SymbolEqualityComparer.Default.Equals(symbol, potentialBase))
                 return true;
 
             var current = symbol.BaseType;
-            while (current != null)
+            while(current != null)
             {
-                if (SymbolEqualityComparer.Default.Equals(current, potentialBase))
+                if(SymbolEqualityComparer.Default.Equals(current, potentialBase))
                     return true;
                 current = current.BaseType;
             }

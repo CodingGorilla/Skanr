@@ -5,6 +5,7 @@ namespace Skanr.AspNetWebAPI
 {
     [TransientService(RegistrationMode.AllInterfaces)]
     [SingletonService(RegistrationMode.Instance)]
+    [TransientService(mode:RegistrationMode.AllInterfaces)]
     public class WeatherService : IFirstInterface, ISecondInterface
     {
     }

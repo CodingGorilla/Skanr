@@ -19,13 +19,4 @@ namespace Skanr.Attributes
 
         public Type[] Interfaces { get; set; }
     }
-
-    public enum RegistrationMode
-    {
-        Auto,
-        FirstInterface,
-        AllInterfaces,
-        Instance,
-        Manual
-    }
 }
