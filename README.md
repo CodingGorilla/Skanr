@@ -18,7 +18,7 @@ Skanr is a C# source generator that simplifies Dependency Injection (DI) setup i
 To install Skanr, add the following package reference to your .NET project:
 
 ```xml
-<PackageReference Include="Skanr" Version="1.0.0" />
+<PackageReference Include="Skanr" Version="1.0.0" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 <PackageReference Include="Skanr.Attributes" Version="1.0.0" />
 ```
 
