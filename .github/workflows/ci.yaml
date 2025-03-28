@@ -31,7 +31,7 @@ jobs:
       run: dotnet build src/Skanr/Skanr.csproj --no-restore --configuration Release
 
     - name: Run Tests
-      run: dotnet test --configuration Release --no-build --verbosity normal
+      run: dotnet test --configuration Release --verbosity normal
 
     - name: Pack Skanr.Attributes NuGet package
       run: dotnet pack src/Skanr.Attributes/Skanr.Attributes.csproj --configuration Release --no-build -o ./nupkg
