@@ -5,19 +5,28 @@ using Microsoft.CodeAnalysis.Text;
 using System.Text;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
+using System.Collections.Immutable;
 using Skanr.Attributes;
 
 namespace Skanr
 {
     [Generator]
-    public class ServiceRegistrationGenerator : ISourceGenerator
+    public class ServiceRegistrationGenerator : IIncrementalGenerator
     {
-        public void Initialize(GeneratorInitializationContext context)
+        public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-            // No initialization needed
+            var classDeclarations = context.SyntaxProvider
+                .CreateSyntaxProvider(
+                    predicate: static (s, _) => s is ClassDeclarationSyntax,
+                    transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.Node)
+                .Where(static m => m != null);
+
+            var compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect());
+
+            context.RegisterSourceOutput(compilationAndClasses, (spc, source) => Execute(source.Left, source.Right, spc));
         }
 
-        public void Execute(GeneratorExecutionContext context)
+        private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classDeclarations, SourceProductionContext context)
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 new DiagnosticDescriptor(
@@ -25,13 +34,11 @@ namespace Skanr
                     "Debug", DiagnosticSeverity.Info, true),
                 Location.None));
 
-            var compilation = context.Compilation;
-
             var registrations = new List<PendingRegistration>();
 
             // Get the InjectableAttribute symbol for inheritance checking
             var injectableAttributeSymbol = compilation.GetTypeByMetadataName("Skanr.Attributes.InjectableAttribute");
-            if(injectableAttributeSymbol == null)
+            if (injectableAttributeSymbol == null)
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     new DiagnosticDescriptor(
@@ -41,86 +48,80 @@ namespace Skanr
                 return; // Exit if base attribute not found
             }
 
-            foreach(var syntaxTree in compilation.SyntaxTrees)
+            foreach (var classDecl in classDeclarations)
             {
-                var semanticModel = compilation.GetSemanticModel(syntaxTree);
-                var classDeclarations = syntaxTree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>();
+                var semanticModel = compilation.GetSemanticModel(classDecl.SyntaxTree);
+                if (semanticModel.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol symbol)
+                    continue;
 
-                foreach(var classDecl in classDeclarations)
+                // Find any attribute that inherits from InjectableAttribute
+                var attributes = symbol.GetAttributes();
+
+                context.ReportDiagnostic(Diagnostic.Create(
+                    new DiagnosticDescriptor(
+                        "SG100", "Found symbol", $"Found: {string.Join(",", attributes)} on {symbol.Name}",
+                        "Debug", DiagnosticSeverity.Info, true),
+                    Location.None));
+                var injectableAttrs = attributes.Where(a => IsSameOrDerivedFrom(a.AttributeClass, injectableAttributeSymbol));
+
+                foreach (var injectableAttr in injectableAttrs)
                 {
-                    if(semanticModel.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol symbol)
-                        continue;
-
-                    // Find any attribute that inherits from InjectableAttribute
-                    var attributes = symbol.GetAttributes();
-
-                    context.ReportDiagnostic(Diagnostic.Create(
-                        new DiagnosticDescriptor(
-                            "SG100", "Found symbol", $"Found: {string.Join(",", attributes)} on {symbol.Name}",
-                            "Debug", DiagnosticSeverity.Info, true),
-                        Location.None));
-                    var injectableAttrs = attributes.Where(a => IsSameOrDerivedFrom(a.AttributeClass, injectableAttributeSymbol));
-                    //var specifiedInterfaces = Array.Empty<INamedTypeSymbol>();
-
-                    foreach(var injectableAttr in injectableAttrs)
+                    if (injectableAttr?.AttributeClass != null)
                     {
-                        if(injectableAttr?.AttributeClass != null)
+                        context.ReportDiagnostic(Diagnostic.Create(
+                            new DiagnosticDescriptor(
+                                "SG002", "Found injectable service", $"Found {injectableAttr.AttributeClass.Name} on {symbol.Name}",
+                                "Debug", DiagnosticSeverity.Info, true),
+                            Location.None));
+
+                        var (lifetime, mode, specifiedInterfaces) = GetMetadataFromAttribute(injectableAttr);
+
+                        var interfaces = symbol.Interfaces;
+
+                        var groupName = symbol.Name;
+                        // Handle registration based on mode
+                        switch (mode)
                         {
-                            context.ReportDiagnostic(Diagnostic.Create(
-                                new DiagnosticDescriptor(
-                                    "SG002", "Found injectable service", $"Found {injectableAttr.AttributeClass.Name} on {symbol.Name}",
-                                    "Debug", DiagnosticSeverity.Info, true),
-                                Location.None));
+                            case "Instance":
+                                registrations.Add(new(groupName, symbol, symbol, lifetime));
+                                break;
 
-                            var (lifetime, mode, specifiedInterfaces) = GetMetadataFromAttribute(injectableAttr);
+                            case "AllInterfaces" when interfaces.Length > 0:
+                                foreach (var iface in interfaces)
+                                {
+                                    registrations.Add(new(groupName, iface, symbol, lifetime));
+                                }
 
-                            var interfaces = symbol.Interfaces;
+                                break;
 
-                            var groupName = symbol.Name;
-                            // Handle registration based on mode
-                            switch(mode)
-                            {
-                                case "Instance":
-                                    registrations.Add(new(groupName, symbol, symbol, lifetime));
-                                    break;
+                            case "FirstInterface" when interfaces.Length > 0:
+                                registrations.Add(new(groupName, interfaces[0], symbol, lifetime));
+                                break;
 
-                                case "AllInterfaces" when interfaces.Length > 0:
-                                    foreach(var iface in interfaces)
-                                    {
+                            case "Auto" when interfaces.Length > 0:
+                                registrations.Add(new(groupName, interfaces[0], symbol, lifetime));
+                                break;
+
+                            case "Manual" when specifiedInterfaces.Length > 0:
+                                foreach (var iface in specifiedInterfaces)
+                                {
+                                    if (interfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, iface)))
                                         registrations.Add(new(groupName, iface, symbol, lifetime));
-                                    }
+                                }
 
-                                    break;
+                                break;
 
-                                case "FirstInterface" when interfaces.Length > 0:
-                                    registrations.Add(new(groupName, interfaces[0], symbol, lifetime));
-                                    break;
-
-                                case "Auto" when interfaces.Length > 0:
-                                    registrations.Add(new(groupName, interfaces[0], symbol, lifetime));
-                                    break;
-
-                                case "Manual" when specifiedInterfaces.Length > 0:
-                                    foreach(var iface in specifiedInterfaces)
-                                    {
-                                        if(interfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, iface)))
-                                            registrations.Add(new(groupName, iface, symbol, lifetime));
-                                    }
-
-                                    break;
-
-                                case "Auto": // If no interfaces are available, fall back to instance
-                                case "Manual": // If no interfaces specified, fall back to instance
-                                default:
-                                    registrations.Add(new(groupName, symbol, symbol, lifetime));
-                                    break;
-                            }
+                            case "Auto": // If no interfaces are available, fall back to instance
+                            case "Manual": // If no interfaces specified, fall back to instance
+                            default:
+                                registrations.Add(new(groupName, symbol, symbol, lifetime));
+                                break;
                         }
                     }
                 }
             }
 
-            if(!registrations.Any())
+            if (!registrations.Any())
             {
                 // Create a diagnostic message if no registrations were found and stop
                 context.ReportDiagnostic(Diagnostic.Create(
@@ -145,11 +146,11 @@ namespace Skanr
 
             var skipEndRegion = true;
             var lastGroupName = string.Empty;
-            foreach(var (groupName, interfaceType, implType, lifetime) in registrations)
+            foreach (var (groupName, interfaceType, implType, lifetime) in registrations)
             {
-                if(lastGroupName != groupName)
+                if (lastGroupName != groupName)
                 {
-                    if(!skipEndRegion)
+                    if (!skipEndRegion)
                     {
                         sb.AppendLine("#endregion");
                         sb.AppendLine();
@@ -182,13 +183,13 @@ namespace Skanr
             var constructorArgs = attributeData.ConstructorArguments;
 
             // Parse meta data based on attribute name
-            if(attributeData.AttributeClass?.Name == nameof(InjectableAttribute))
+            if (attributeData.AttributeClass?.Name == nameof(InjectableAttribute))
                 parseInjectableAttribute();
-            else if(attributeData.AttributeClass?.Name == nameof(TransientServiceAttribute))
+            else if (attributeData.AttributeClass?.Name == nameof(TransientServiceAttribute))
                 parseTransientAttribute();
-            else if(attributeData.AttributeClass?.Name == nameof(ScopedServiceAttribute))
+            else if (attributeData.AttributeClass?.Name == nameof(ScopedServiceAttribute))
                 parseScopedAttribute();
-            else if(attributeData.AttributeClass?.Name == nameof(SingletonServiceAttribute))
+            else if (attributeData.AttributeClass?.Name == nameof(SingletonServiceAttribute))
                 parseSingletonAttribute();
             else
                 throw new Exception($"Invalid attribute: ${attributeData.AttributeClass?.Name ?? "Unknown"}");
@@ -208,7 +209,7 @@ namespace Skanr
                     _ => "Transient"
                 };
 
-                if(constructorArgs.Length > 1)
+                if (constructorArgs.Length > 1)
                 {
                     mode = constructorArgs[1].Value?.ToString() switch
                     {
@@ -220,7 +221,7 @@ namespace Skanr
                     };
                 }
 
-                if(constructorArgs.Length > 2)
+                if (constructorArgs.Length > 2)
                 {
                     interfaces = constructorArgs[2].Values
                                                    .Select(v => v.Value as INamedTypeSymbol)
@@ -236,7 +237,7 @@ namespace Skanr
                 lifetime = "Transient";
 
                 // Check positional arguments
-                if(constructorArgs.Length > 0)
+                if (constructorArgs.Length > 0)
                 {
                     mode = constructorArgs[0].Value?.ToString() switch
                     {
@@ -248,7 +249,7 @@ namespace Skanr
                     };
                 }
 
-                if(constructorArgs.Length > 1)
+                if (constructorArgs.Length > 1)
                 {
                     interfaces = constructorArgs[1].Values
                                                    .Select(v => v.Value as INamedTypeSymbol)
@@ -264,7 +265,7 @@ namespace Skanr
                 lifetime = "Scoped";
 
                 // Check positional arguments
-                if(constructorArgs.Length > 0)
+                if (constructorArgs.Length > 0)
                 {
                     mode = constructorArgs[0].Value?.ToString() switch
                     {
@@ -276,7 +277,7 @@ namespace Skanr
                     };
                 }
 
-                if(constructorArgs.Length > 1)
+                if (constructorArgs.Length > 1)
                 {
                     interfaces = constructorArgs[1].Values
                                                    .Select(v => v.Value as INamedTypeSymbol)
@@ -292,7 +293,7 @@ namespace Skanr
                 lifetime = "Singleton";
 
                 // Check positional arguments
-                if(constructorArgs.Length > 0)
+                if (constructorArgs.Length > 0)
                 {
                     mode = constructorArgs[0].Value?.ToString() switch
                     {
@@ -304,7 +305,7 @@ namespace Skanr
                     };
                 }
 
-                if(constructorArgs.Length > 1)
+                if (constructorArgs.Length > 1)
                 {
                     interfaces = constructorArgs[1].Values
                                                    .Select(v => v.Value as INamedTypeSymbol)
@@ -318,9 +319,9 @@ namespace Skanr
             void checkNamedArgs()
             {
                 // Look for named arguments
-                foreach(var namedArg in attributeData.NamedArguments)
+                foreach (var namedArg in attributeData.NamedArguments)
                 {
-                    switch(namedArg.Key)
+                    switch (namedArg.Key)
                     {
                         case "lifetime":
                             lifetime = namedArg.Value.Value?.ToString() switch
@@ -354,16 +355,16 @@ namespace Skanr
 
         private static bool IsSameOrDerivedFrom(INamedTypeSymbol? symbol, INamedTypeSymbol potentialBase)
         {
-            if(symbol == null)
+            if (symbol == null)
                 return false;
 
-            if(SymbolEqualityComparer.Default.Equals(symbol, potentialBase))
+            if (SymbolEqualityComparer.Default.Equals(symbol, potentialBase))
                 return true;
 
             var current = symbol.BaseType;
-            while(current != null)
+            while (current != null)
             {
-                if(SymbolEqualityComparer.Default.Equals(current, potentialBase))
+                if (SymbolEqualityComparer.Default.Equals(current, potentialBase))
                     return true;
                 current = current.BaseType;
             }
