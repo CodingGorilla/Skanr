@@ -82,7 +82,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService, TestService>();");
         }
 
@@ -161,7 +161,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService, TestService>();");
         }
 
@@ -211,7 +211,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddScoped<ITestService, TestService>();");
         }
 
@@ -261,7 +261,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddSingleton<ITestService, TestService>();");
         }
 
@@ -314,7 +314,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService, TestService>();");
 
@@ -369,7 +369,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService, TestService>();");
 
@@ -424,7 +424,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldContain("services.AddTransient<ITestService, TestService>();");
 
@@ -479,7 +479,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldContain("services.AddTransient<ITestService, TestService>();");
 
@@ -534,7 +534,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<TestService, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService, TestService>();");
@@ -589,7 +589,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<TestService, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService, TestService>();");
@@ -650,7 +650,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<IBaseService, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<TestService, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService2, TestService>();");
@@ -710,7 +710,7 @@ namespace Skanr.UnitTests
             var generatedTrees = outputCompilation.SyntaxTrees.ToList();
             generatedTrees.Count.ShouldBe(2);
             var generatedCode = generatedTrees[1].ToString();
-            generatedCode.ShouldContain("public static class SkanrRegistration");
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<IBaseService, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<TestService, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService2, TestService>();");

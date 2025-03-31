@@ -138,8 +138,10 @@ namespace Skanr
             sb.AppendLine();
             sb.AppendLine($"namespace {compilation.AssemblyName};");
             sb.AppendLine();
-            sb.AppendLine("public static class SkanrRegistration");
+            sb.AppendLine("public static partial class SkanrServiceRegistration");
             sb.AppendLine("{");
+            sb.AppendLine("    static partial void RegisterAdditionalServices(IServiceCollection services);");
+            sb.AppendLine();
             sb.AppendLine("    public static void RegisterServices(this IServiceCollection services)");
             sb.AppendLine("    {");
 
@@ -167,6 +169,9 @@ namespace Skanr
             }
 
             sb.AppendLine("#endregion");
+            sb.AppendLine();
+            sb.AppendLine("        RegisterAdditionalServices(services);");
+            sb.AppendLine();
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
