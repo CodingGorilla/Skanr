@@ -29,6 +29,6 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(Pack)' == 'true'">
-		<PackageReference Include="Skanr.Attributes" Version="1.0.0" />
+		<PackageReference Include="Skanr.Attributes" Version="1.3.0" />
 	</ItemGroup>
 </Project>

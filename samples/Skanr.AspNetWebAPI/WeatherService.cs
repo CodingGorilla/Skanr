@@ -17,4 +17,9 @@ namespace Skanr.AspNetWebAPI
     public interface ISecondInterface
     {
     }
+
+    [TransientService(PreprocessorLabel = "DEBUG")]
+    public class DebugWeatherService
+    {
+    }
 }

@@ -717,6 +717,57 @@ namespace Skanr.UnitTests
             generatedCode.ShouldNotContain("services.AddTransient<ITestService, TestService>();");
         }
 
+        [Fact]
+        public void Test_Execute_GeneratesExpectedCode_WithPreprocessorLabel()
+        {
+            // Arrange
+            var source = @"
+        using Skanr.Attributes;
+        using Microsoft.Extensions.DependencyInjection;
+
+        namespace TestNamespace
+        {
+            [Injectable(ServiceLifetime.Transient, PreprocessorLabel = ""MY_FEATURE"")]
+            public class TestService : ITestService
+            {
+            }
+
+            public interface ITestService
+            {
+            }
+        }
+    ";
+
+            var syntaxTree = CSharpSyntaxTree.ParseText(source);
+
+            var metadataReferences = GetMetadataReferences();
+
+            var compilation = CSharpCompilation.Create("TestAssembly",
+                new[] { syntaxTree },
+                metadataReferences,
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+            var generator = new ServiceRegistrationGenerator();
+            var driver = CSharpGeneratorDriver.Create(generator);
+
+            // Act
+            driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
+
+            // Print generated source code
+            foreach (var tree in outputCompilation.SyntaxTrees)
+            {
+                _testOutputHelper.WriteLine(tree.ToString());
+            }
+
+            // Assert
+            var generatedTrees = outputCompilation.SyntaxTrees.ToList();
+            generatedTrees.Count.ShouldBe(2);
+            var generatedCode = generatedTrees[1].ToString();
+            generatedCode.ShouldContain("#if MY_FEATURE");
+            generatedCode.ShouldContain("services.AddTransient<ITestService, TestService>();");
+            generatedCode.ShouldContain("#endif");
+        }
+
         private static IEnumerable<MetadataReference> GetMetadataReferences()
         {
             var dotnetPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;

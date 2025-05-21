@@ -18,5 +18,7 @@ namespace Skanr.Attributes
         public RegistrationMode Mode { get; }
 
         public Type[] Interfaces { get; set; }
+
+        public string PreprocessorLabel { get; set; }
     }
 }
