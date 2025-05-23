@@ -202,7 +202,7 @@ namespace Skanr.UnitTests
             driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
 
             // Print generated source code
-            foreach (var tree in outputCompilation.SyntaxTrees)
+            foreach(var tree in outputCompilation.SyntaxTrees)
             {
                 _testOutputHelper.WriteLine(tree.ToString());
             }
@@ -252,7 +252,7 @@ namespace Skanr.UnitTests
             driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
 
             // Print generated source code
-            foreach (var tree in outputCompilation.SyntaxTrees)
+            foreach(var tree in outputCompilation.SyntaxTrees)
             {
                 _testOutputHelper.WriteLine(tree.ToString());
             }
@@ -317,7 +317,6 @@ namespace Skanr.UnitTests
             generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService, TestService>();");
-
         }
 
         [Fact]
@@ -372,7 +371,6 @@ namespace Skanr.UnitTests
             generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService, TestService>();");
-
         }
 
         [Fact]
@@ -427,7 +425,6 @@ namespace Skanr.UnitTests
             generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldContain("services.AddTransient<ITestService, TestService>();");
-
         }
 
         [Fact]
@@ -482,7 +479,6 @@ namespace Skanr.UnitTests
             generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
             generatedCode.ShouldContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldContain("services.AddTransient<ITestService, TestService>();");
-
         }
 
         [Fact]
@@ -593,7 +589,6 @@ namespace Skanr.UnitTests
             generatedCode.ShouldContain("services.AddTransient<TestService, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService2, TestService>();");
             generatedCode.ShouldNotContain("services.AddTransient<ITestService, TestService>();");
-
         }
 
 
@@ -754,7 +749,7 @@ namespace Skanr.UnitTests
             driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
 
             // Print generated source code
-            foreach (var tree in outputCompilation.SyntaxTrees)
+            foreach(var tree in outputCompilation.SyntaxTrees)
             {
                 _testOutputHelper.WriteLine(tree.ToString());
             }
@@ -767,6 +762,7 @@ namespace Skanr.UnitTests
             generatedCode.ShouldContain("services.AddTransient<ITestService, TestService>();");
             generatedCode.ShouldContain("#endif");
         }
+
 
         private static IEnumerable<MetadataReference> GetMetadataReferences()
         {
@@ -781,6 +777,56 @@ namespace Skanr.UnitTests
                 MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "netstandard.dll"))
             ];
             return metadataReferences;
+        }
+
+        [Fact]
+        public void Test_Execute_GeneratesExpectedCode_WithExternalNamespace()
+        {
+            // Arrange
+            var source = @"
+        using Skanr.Attributes;
+        using Microsoft.Extensions.DependencyInjection;
+        using Skanr.UnitTests.Fakes;
+
+        namespace TestNamespace
+        {
+        [Injectable(ServiceLifetime.Transient)]
+        public class TestService : Skanr.UnitTests.Fakes.IFakeInterface
+        {
+        }
+        }
+        ";
+
+            var syntaxTree = CSharpSyntaxTree.ParseText(source);
+
+            var metadataReferences = GetMetadataReferences().ToList();
+            // Add reference to the assembly containing FakeImpl and IFakeInterface
+            metadataReferences.Add(MetadataReference.CreateFromFile(typeof(Fakes.IFakeInterface).Assembly.Location));
+
+            var compilation = CSharpCompilation.Create("TestAssembly",
+                [syntaxTree],
+                metadataReferences,
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+            var generator = new ServiceRegistrationGenerator();
+            var driver = CSharpGeneratorDriver.Create(generator);
+
+            // Act
+            driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
+
+            // Print generated source code
+            foreach(var tree in outputCompilation.SyntaxTrees)
+            {
+                _testOutputHelper.WriteLine(tree.ToString());
+            }
+
+            // Assert
+            var generatedTrees = outputCompilation.SyntaxTrees.ToList();
+            generatedTrees.Count.ShouldBe(2);
+            var generatedCode = generatedTrees[1].ToString();
+            generatedCode.ShouldContain("public static partial class SkanrServiceRegistration");
+            generatedCode.ShouldContain("services.AddTransient<IFakeInterface, TestService>();");
+            generatedCode.ShouldContain("using global::Skanr.UnitTests.Fakes;");
         }
     }
 }
